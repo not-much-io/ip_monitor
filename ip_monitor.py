@@ -34,8 +34,9 @@ class Mailer:
         text = msg.as_string()
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.login(from_addr, password)
+        server.ehlo()
         server.starttls()
+        server.login(from_addr, password)
         server.sendmail(from_addr, to_addr, text)
         server.quit()
 
