@@ -1,61 +1,44 @@
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from time import sleep
 from requests import get
+from collections import namedtuple
 
-conf = dict(
-    # Any email address
-    toEmail='',
-    # Google e-mail address
-    fromEmail='',
-    # Google password
-    password=''
-)
+User = namedtuple("User", ("user_name",
+                           "password",
+                           "application_password"  # For two way auth
+                           ))
 
 
-class Mailer:
-    def __init__(self, subject, body):
-        self.subject = subject
-        self.body = body
+def send_mail(user_: User, subject_: str, to_address: str) -> None:
+    server = smtplib.SMTP('smtp.gmail.com', 587)
 
-    def send_mail(self):
-        from_addr = conf['fromEmail']
-        to_addr = conf['toEmail']
-        password = conf['password']
+    server.ehlo()
+    server.starttls()
 
-        msg = MIMEMultipart()
-        msg['From'] = from_addr
-        msg['To'] = to_addr
-        msg['Subject'] = self.subject
+    server.login(user_.user_name, user_.application_password)
+    server.sendmail(
+        user_.user_name,
+        to_address,
+        "Subject: {}".format(subject_)
+    )
 
-        msg.attach(MIMEText(self.body, 'plain'))
-
-        text = msg.as_string()
-
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.ehlo()
-        server.starttls()
-        server.login(from_addr, password)
-        server.sendmail(from_addr, to_addr, text)
-        server.quit()
+    server.quit()
 
 
-def get_ip():
+def get_ip() -> str:
     return get('https://api.ipify.org').text
 
 
 if __name__ == '__main__':
-    last_ip = ""
+    last_ip: str = None
+    user = User("kristo.koert@gmail.com", "", "")
+
     while True:
         curr_ip = get_ip()
 
         if curr_ip != last_ip:
-            newMail = Mailer("External IP has changed.",
-                             "New IP: " + curr_ip)
-            newMail.send_mail()
+            subject = "Router IP has changed: {}.".format(curr_ip)
+            send_mail(user, subject, user.user_name)
             last_ip = curr_ip
-            print("Sent new IP: ", curr_ip)
         else:
-            print("ZZzz..")
             sleep(3600)
